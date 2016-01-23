@@ -1,0 +1,59 @@
+///////////////////////////////////
+int DS_pin = 2;
+int STCP_pin = 3;
+int SHCP_pin = 4;
+
+void setup()
+{
+  pinMode(DS_pin, OUTPUT);
+  pinMode(STCP_pin, OUTPUT);
+  pinMode(SHCP_pin, OUTPUT);
+  writereg();
+  Serial.begin(57600);
+}
+
+boolean registers[8];
+//The corresponding segments for each the elements in registers
+//0 == a
+//1 == b
+//2 == c
+//3 == d 
+//4 == e
+//5 == f
+//6 == g
+//7 == dp
+
+void writereg()
+{
+  digitalWrite(STCP_pin, LOW);
+  for (int i = 7; i >= 0; i--)
+  {
+    digitalWrite(SHCP_pin, LOW);
+    digitalWrite(DS_pin, registers[i] );
+    digitalWrite(SHCP_pin, HIGH);
+  }
+  digitalWrite(STCP_pin, HIGH);
+}
+
+void loop()
+{
+  for (int i = 0; i <= 7; i++)
+  {
+    registers[i] = HIGH;
+    delay(100);
+    writereg();
+  }
+
+  for (int i = 7; i >= 0; i--)
+  {
+    registers[i] = LOW;
+    delay(100);
+    for (int i = 0; i < 7; i++) {
+      Serial.print(registers[i]);
+    }
+    Serial.println();
+    writereg();
+  }
+
+}
+///////////////////////////////////
