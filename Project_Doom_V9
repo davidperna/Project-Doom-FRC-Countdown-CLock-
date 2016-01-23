@@ -1,0 +1,174 @@
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//Tested to work with board selected as ATmega328 on a breadboard (8MHz internal clock)
+//HOWEVER SEEMS TO DRIFT BY ABOUT ONE SECOND EVERY FEW HOURS (Unsure if due to software of hardware)
+//Be sure to burn correct bootloader first
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Include I2C Library
+#include <Wire.h>
+// Include TLC Library
+#include <Tlc5940.h>
+//Brightness value for each LED segment (0 - 4095)
+int brightness = 4000;
+
+//Longs for the current date and time.
+long seconds, minutes, hours, days, weeks, date, months;
+
+//Longs for the end date and  time.
+long endSecond = 59, endMinute = 59, endHour = 23, endDay = 23, endMonth = 2;
+
+//Integers for countdown values
+int weeksLeft = 0, daysLeft = 0, hoursLeft = 0, minutesLeft = 0, secondsLeft = 0;
+
+//Longs for time and date in seconds
+long endTimeInSeconds = 0;
+long currentTimeInSeconds = 0;
+
+//Cummulative number of days passed by end of month
+int daysByEndOfMonth[13] = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365};
+
+//Boolean 2D array for each digit and its corresponding set of on segments
+boolean numberSegments[10][8] = {  
+  {1,1,1,1,0,1,1,1},
+  {0,0,0,0,0,1,1,1},
+  {1,1,0,1,1,1,0,1},
+  {0,1,0,1,1,1,1,1},
+  {0,0,1,0,1,1,1,1},
+  {0,1,1,1,1,0,1,1},
+  {1,1,1,1,1,0,1,1},
+  {0,0,0,1,0,1,1,1},
+  {1,1,1,1,1,1,1,1},
+  {0,1,1,1,1,1,1,1},
+};
+
+// Conversion from Binary Coded Decimal to Decimal
+byte bcdToDec(byte val)
+{
+  return ( (val / 16 * 10) + (val % 16) );
+}
+
+// Conversion from Decimal to Binary Coded Decimal
+byte decToBcd(byte val) {
+  return ((val/10*16) + (val%10));
+}
+
+// Setup
+void setup()
+{
+  // Begin I2C
+  Wire.begin();
+  // Initialize TLC
+  Tlc.init(0);
+
+  // Start Serial output. (56700 BAUD or higher works best).
+  Serial.begin(57600);
+  
+  /*
+  // Open I2C line in write mode
+  Wire.beginTransmission(0x68);
+  // Set the register pointer to (0x00)
+  Wire.write((byte)0x00);
+  // Set the seconds to zero.
+  Wire.write(decToBcd(0));
+  // Set the minutes to zero.
+  Wire.write(decToBcd(7));
+  // Set the hours to zero.
+  Wire.write(decToBcd(1));
+  // Set the weekDay to Sunday.
+  Wire.write(decToBcd(3));
+  // Set the monthsDay to one.
+  Wire.write(decToBcd(12));
+  // Set the months to July. (July and August both have 31 days, therefore calculating weeks between the two makes life easy.
+  Wire.write(decToBcd(1));
+  // Set the year to 2001. (No leap-year).
+  Wire.write(decToBcd(16));
+  // Set SQW/OUT pin to 1Hz frequency
+  Wire.write(0x10);
+  // End Write Transmission
+  Wire.endTransmission();
+  */
+  Tlc.clear();
+  Tlc.update();
+  delay(10);
+}
+void loop()
+{
+  // Open I2C line in write mode
+  Wire.beginTransmission(0x68);
+  // Set the register pointer to (0x00)
+  Wire.write((byte)0x00);
+  // End Write Transmission
+  Wire.endTransmission();
+
+  // Open the I2C line in send mode
+  Wire.requestFrom(0x68, 6);
+
+  // Read the seconds from the first byte. (Mask to 0x7f).
+  seconds = bcdToDec(Wire.read() & 0x7f);
+  // Read the minutes from the second byte.
+  minutes = bcdToDec(Wire.read());
+  // Read the hours from the third byte. (Mask to 0x3f).
+  hours = bcdToDec(Wire.read() & 0x3f);
+  // Read the days from the fourth byte. 
+  days = bcdToDec(Wire.read());
+  // Read the date from the fifth byte.
+  date = bcdToDec(Wire.read());
+  // Read the months from the sixth byte.
+  months = bcdToDec(Wire.read());
+
+  //Calculate time in seconds since January 1st for end time and current time
+  endTimeInSeconds = ((daysByEndOfMonth[endMonth - 1] + (endDay - 1)) * 86400) + (endHour * 3600) + (endMinute * 60) + endSecond;
+  currentTimeInSeconds = ((daysByEndOfMonth[months - 1] + (date - 1)) * 86400) + (hours * 3600) + (minutes * 60) + seconds;
+  
+  //Check if countdown has reached end and if so, ensure countdown stays at 0:0:00:00:00
+  if(endTimeInSeconds <= currentTimeInSeconds)
+    currentTimeInSeconds = endTimeInSeconds;
+    
+  //Calculate the value for weeks, days, hours, minutes, seconds for countdown
+  weeksLeft = (endTimeInSeconds - currentTimeInSeconds) / 604800;
+  daysLeft = ((endTimeInSeconds - currentTimeInSeconds) - 604800 * weeksLeft) / 86400;
+  hoursLeft = ((endTimeInSeconds - currentTimeInSeconds) - 604800 * weeksLeft - 86400 * daysLeft) / 3600;
+  minutesLeft = ((endTimeInSeconds - currentTimeInSeconds) - 604800 * weeksLeft - 86400 * daysLeft - 3600 * hoursLeft);
+  minutesLeft /= 60; //Does not work to put this in the line before.
+  secondsLeft = ((endTimeInSeconds - currentTimeInSeconds) - 604800 * weeksLeft - 86400 * daysLeft - 3600 * hoursLeft - 60 * minutesLeft);
+  
+  //set all the outputs of the TLC for the current countdown
+  for(int j = 0; j < 8; j ++)
+  {
+    Tlc.set(56 + j, numberSegments[daysLeft][j] * brightness);
+    Tlc.set(48 + j, numberSegments[weeksLeft][j] * brightness);
+    Tlc.set(40 + j, numberSegments[hoursLeft % 10][j] * brightness);
+    Tlc.set(32 + j, numberSegments[hoursLeft / 10][j] * brightness);
+    Tlc.set(24 + j, numberSegments[minutesLeft % 10][j] * brightness);
+    Tlc.set(16 + j, numberSegments[minutesLeft / 10][j] * brightness);
+    Tlc.set(8 + j, numberSegments[secondsLeft % 10][j] * brightness);
+    Tlc.set(j, numberSegments[secondsLeft / 10][j] * brightness);
+  }
+  
+  //Update Every 100 mS
+  Tlc.update();
+  delay(100);
+  
+  //Clear all outputs for next update
+  Tlc.clear(); 
+  
+  /*
+  //Display current time
+  if(hours > 12) hours -= 12;
+  if (hours == 0) hours = 12;
+  //weeks = floor((31*(months-7) + date)/7);
+  
+  for(int j = 0; j < 8; j ++)
+  {
+    Tlc.set(40 + j, numberSegments[hours % 10][j] * brightness);
+    Tlc.set(32 + j, numberSegments[hours / 10][j] * brightness);
+    Tlc.set(24 + j, numberSegments[minutes % 10][j] * brightness);
+    Tlc.set(16 + j, numberSegments[minutes / 10][j] * brightness);
+    Tlc.set(8 + j, numberSegments[seconds % 10][j] * brightness);
+    Tlc.set(j, numberSegments[seconds / 10][j] * brightness);
+  }
+  Tlc.update();
+  delay(1000);
+  Tlc.clear(); 
+  */
+}
