@@ -1,0 +1,201 @@
+// REBELS 4976 DOOMSDAY CLOCK V6
+// David Perna, Daniel Wolff, Ben Ecclestone, Reid Perna
+// 5/13/2015
+
+// DATASHEETS //
+// 7-Segment Display: http://pdf.datasheetcatalog.com/datasheet/vishay/83125.pdf
+// Real Time Clock: http://datasheets.maximintegrated.com/en/ds/DS1307.pdf
+// Shift Register: http://www.ti.com/lit/ds/symlink/tlc5940.pdf
+
+// Include I2C Library
+#include <Wire.h>
+// Include TLC Library
+#include <Tlc5940.h>
+
+// Integer variables for the time.
+int seconds, minutes, hours, days, weeks, date, months;
+
+int numSegments = 8, numDisplays = 8;
+long ctime = 0, gtime = 1;
+
+boolean numberSegments[10][8] = {  
+  {
+    1,1,1,1,1,1,0,0                        }
+  ,
+  {
+    0,1,1,0,0,0,0,0                        }
+  ,
+  {
+    1,1,0,1,1,0,1,0                        }
+  ,
+  {
+    1,1,1,1,0,0,1,0                        }
+  ,
+  {
+    0,1,1,0,0,1,1,0                        }
+  ,
+  {
+    1,0,1,1,0,1,1,0                        }
+  ,
+  {
+    1,0,1,1,1,1,1,0                        }
+  ,
+  {
+    1,1,1,0,0,0,0,0                        }
+  ,
+  {
+    1,1,1,1,1,1,1,0                        }
+  ,
+  {
+    1,1,1,1,0,1,1,0                        }  
+};
+
+// Conversion from Binary Coded Decimal to Decimal
+byte bcdToDec(byte val)
+{
+  return ( (val / 16 * 10) + (val % 16) );
+}
+
+// Setup
+void setup()
+{
+  // Begin I2C
+  Wire.begin();
+  // Init TLC
+  Tlc.init(0);
+
+  // Start Serial output. (56700 BAUD or higher works best).
+  Serial.begin(57600);
+
+  // Open I2C line in write mode
+  Wire.beginTransmission(0x68);
+  // Set the register pointer to (0x00)
+  Wire.write((byte)0x00);
+  // Set the seconds to zero.
+  Wire.write(0);
+  // Set the minutes to zero.
+  Wire.write(0);
+  // Set the hours to zero.
+  Wire.write(0);
+  // Set the weekDay to Sunday.
+  Wire.write(1);
+  // Set the monthsDay to one.
+  Wire.write(1);
+  // Set the months to July. (July and August both have 31 days, therefore calculating weeks between the two makes life easy.
+  Wire.write(7);
+  // Set the year to 2001. (No leap-year).
+  Wire.write(1);
+  // End Write Transmission
+  Wire.endTransmission();
+
+}
+
+void loop()
+{
+
+  // Open I2C line in write mode
+  Wire.beginTransmission(0x68);
+  // Set the register pointer to (0x00)
+  Wire.write((byte)0x00);
+  // End Write Transmission
+  Wire.endTransmission();
+
+  // Open the I2C line in send mode
+  Wire.requestFrom(0x68, 6);
+
+  // Read the seconds from the first byte. (Mask to 0x7f).
+  seconds = bcdToDec(Wire.read() & 0x7f);
+  // Read the minutes from the second byte.
+  minutes = bcdToDec(Wire.read());
+  // Read the hours from the third byte. (Mask to 0x3f).
+  hours = bcdToDec(Wire.read() & 0x3f);
+  // Read the days from the fourth byte. 
+  days = bcdToDec(Wire.read());
+  // Read the date from the fifth byte.
+  date = bcdToDec(Wire.read());
+  // Read the months from the sixth byte.
+  months = bcdToDec(Wire.read());
+
+  weeks = floor((31*(months-7) + date)/7);
+
+
+  // Loop through each display..
+  for (int i = 0; i < numDisplays*1; i++) {
+    
+    ctime = millis();
+    
+    Tlc.clear();
+    
+    // Depending on which display is on, send the correct time data to the TLC.
+    switch(i%8) {
+    case 1:
+      setNumber(((59-seconds) - ((59-seconds) % 10))/10);
+      break;
+    case 0:
+      setNumber((59-seconds) % 10);
+      break;
+    case 3:
+      setNumber(((59-minutes) - ((59-minutes) % 10))/10);
+      break;
+    case 2:
+      setNumber((59-minutes) % 10);
+      break;
+    case 5:
+      setNumber(((23-hours) - ((23-hours) % 10))/10);
+      break;
+    case 4:
+      setNumber((23-hours) % 10);
+      break;
+    case 7:
+      setNumber(5-weeks);
+      break;
+    case 6:
+      setNumber((7-days) % 7);
+      break;
+
+    }
+
+    // Turn on the current display.
+    setAnodes(i%8);
+    // Send the data.
+    Tlc.update();
+    
+    while(millis()-ctime < gtime) { 
+    }
+    
+  }
+
+
+  /*
+   Tlc.update();
+   delay(1000);
+   
+   for (int i = 0; i < 8; i++) {
+   Tlc.set(8+i,(i+1)*512 - 1);
+   Tlc.update();
+   delay(500);
+   }
+   */
+}
+
+// Takes the number and sends it to the TLC.
+void setNumber(byte _num) {
+  // For each segment of a single display..
+  for (int i = 0; i < numSegments; i++) {
+    // Set the brightness to the data in numberSegments multiplied by 2048 (maximum brightness).
+    Tlc.set(i, numberSegments[_num][i]*1024);
+  }
+}
+
+// Takes the segment number to currently be displayed and sets its value to high, and the other
+//   segments to low.
+void setAnodes(byte _seg) {
+  // For each display..
+  for (int i = 0; i < numDisplays; i++) {
+    // If the segment matches the loop, set that TLC to HIGH. Else, set to LOW.
+    if(i == _seg)
+      Tlc.set(15-i,1024);
+    else
+      Tlc.set(15-i,0); 
+  }
+}
