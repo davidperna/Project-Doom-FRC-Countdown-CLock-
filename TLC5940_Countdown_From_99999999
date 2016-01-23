@@ -1,0 +1,256 @@
+#include <Tlc5940.h>
+//#include <tlc_animations.h>
+//#include <tlc_config.h>
+//#include <tlc_fades.h>
+//#include <tlc_progmem_utils.h>
+//#include <tlc_servos.h>
+//#include <tlc_shifts.h>
+
+#include "Tlc5940.h"
+
+  boolean iNumberToSegments[10][8] = { {1,1,1,1,1,1,0,0},
+                                       {0,1,1,0,0,0,0,0},
+                                       {1,1,0,1,1,0,1,0}, 
+                                       {1,1,1,1,0,0,1,0}, 
+                                       {0,1,1,0,0,1,1,0}, 
+                                       {1,0,1,1,0,1,1,0}, 
+                                       {1,0,1,1,1,1,1,0}, 
+                                       {1,1,1,0,0,0,0,0},
+                                       {1,1,1,1,1,1,1,0}, 
+                                       {1,1,1,1,0,1,1,0}  };
+                                       
+  /*
+    0 = a
+    1 = b
+    2 = c
+    3 = d
+    4 = e
+    5 = f
+    6 = g
+    7 = dp
+  */
+  int iDigit[] = {0, 0, 0, 0, 0, 0, 0, 0};
+  
+  boolean iDigitSegs[8][8] = {  {0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0}  };
+void setup()
+{
+  pinMode(0, OUTPUT);
+  pinMode(1, OUTPUT);
+  pinMode(2, OUTPUT);
+  pinMode(5, OUTPUT);
+  pinMode(6, OUTPUT);
+  pinMode(7, OUTPUT);
+  pinMode(8, OUTPUT);
+  pinMode(12, OUTPUT);
+  
+  Tlc.init(0); // initialise TLC5940 and set all channels off
+}
+
+void loop()
+{
+  int iUpdateTime = 1000;
+  int iClearTime = 1000;
+  for(int iCount = 9; iCount >= 0; iCount --)
+  {
+    for(int iCount1 = 9; iCount1 >= 0; iCount1 --)
+    {
+      for(int iCount2 = 9; iCount2 >= 0; iCount2 --)
+      {
+        for(int iCount3 = 9; iCount3 >= 0; iCount3 --)
+        {
+          for(int iCount4 = 9; iCount4 >= 0; iCount4 --)
+          {
+            for(int iCount5 = 9; iCount5 >= 0; iCount5 --)
+            {
+              for(int iCount6 = 9; iCount6 >= 0; iCount6 --)
+              {
+                for(int iCount7 = 9; iCount7 >= 0; iCount7 --)
+                {
+                  iDigit[0] = iCount;
+                  iDigit[1] = iCount1;
+                  iDigit[2] = iCount2;
+                  iDigit[3] = iCount3;
+                  iDigit[4] = iCount4;
+                  iDigit[5] = iCount5;
+                  iDigit[6] = iCount6;
+                  iDigit[7] = iCount7;
+                 
+                  for(int iUpdateDigits = 0; iUpdateDigits < 8; iUpdateDigits ++)
+                  {
+                    for(int iUpdateSegs = 0; iUpdateSegs < 8; iUpdateSegs ++)
+                    {
+                      iDigitSegs[iUpdateDigits][iUpdateSegs] = iNumberToSegments[iDigit[iUpdateDigits]][iUpdateSegs];
+                    }
+                  }
+                  
+                  for(int iLoop = 0; iLoop < 4; iLoop ++)
+                  { 
+                    
+                  ///////////////
+                  Tlc.clear();
+                  Tlc.update();
+                  delayMicroseconds(500);
+                  digitalWrite(0, LOW);
+                  digitalWrite(1, HIGH);
+                  digitalWrite(2, HIGH);
+                  digitalWrite(5, HIGH);
+                  digitalWrite(6, HIGH);
+                  digitalWrite(7, HIGH);
+                  digitalWrite(8, HIGH);
+                  digitalWrite(12, HIGH);
+                  for(int iPrintDigits = 0; iPrintDigits < 8; iPrintDigits ++)
+                  {
+                    if(iDigitSegs[7][iPrintDigits]) Tlc.set(iPrintDigits, 4095);
+                  }
+                  Tlc.update();
+                  delayMicroseconds(iUpdateTime);
+                  
+                  /////////////////////
+                  Tlc.clear();
+                  Tlc.update();
+                  delayMicroseconds(iClearTime);
+                  digitalWrite(0, HIGH);
+                  digitalWrite(1, LOW);
+                  digitalWrite(2, HIGH);
+                  digitalWrite(5, HIGH);
+                  digitalWrite(6, HIGH);
+                  digitalWrite(7, HIGH);
+                  digitalWrite(8, HIGH);
+                  digitalWrite(12, HIGH);
+                  for(int iPrintDigits = 0; iPrintDigits < 8; iPrintDigits ++)
+                  {
+                    if(iDigitSegs[6][iPrintDigits]) Tlc.set(iPrintDigits, 4095);
+                  }
+                  Tlc.update();
+                  delayMicroseconds(iUpdateTime);
+                  
+                  /////////////////         
+                  Tlc.clear();
+                  Tlc.update();
+                  delayMicroseconds(iClearTime);
+                  digitalWrite(0, HIGH);
+                  digitalWrite(1, HIGH);
+                  digitalWrite(2, LOW);
+                  digitalWrite(5, HIGH);
+                  digitalWrite(6, HIGH);
+                  digitalWrite(7, HIGH);
+                  digitalWrite(8, HIGH);
+                  digitalWrite(12, HIGH);
+                  for(int iPrintDigits = 0; iPrintDigits < 8; iPrintDigits ++)
+                  {
+                   if(iDigitSegs[5][iPrintDigits]) Tlc.set(iPrintDigits, 4095);
+                  }
+                  Tlc.update();
+                  delayMicroseconds(iUpdateTime); 
+                  
+                  //////////////////
+                  Tlc.clear();
+                  Tlc.update();
+                  delayMicroseconds(iClearTime);
+                  digitalWrite(0, HIGH);
+                  digitalWrite(1, HIGH);
+                  digitalWrite(2, HIGH);
+                  digitalWrite(5, LOW);
+                  digitalWrite(6, HIGH);
+                  digitalWrite(7, HIGH);
+                  digitalWrite(8, HIGH);
+                  digitalWrite(12, HIGH);
+                  for(int iPrintDigits = 0; iPrintDigits < 8; iPrintDigits ++)
+                  {
+                    if(iDigitSegs[4][iPrintDigits]) Tlc.set(iPrintDigits, 4095);
+                  }
+                  Tlc.update();     
+                  delayMicroseconds(iUpdateTime); 
+                  
+                  //////////////////
+                  Tlc.clear();
+                  Tlc.update();
+                  delayMicroseconds(iClearTime);
+                  digitalWrite(0, HIGH);
+                  digitalWrite(1, HIGH);
+                  digitalWrite(2, HIGH);
+                  digitalWrite(5, HIGH);
+                  digitalWrite(6, LOW);
+                  digitalWrite(7, HIGH);
+                  digitalWrite(8, HIGH);
+                  digitalWrite(12, HIGH);
+                  for(int iPrintDigits = 0; iPrintDigits < 8; iPrintDigits ++)
+                  {
+                    if(iDigitSegs[3][iPrintDigits]) Tlc.set(iPrintDigits, 4095);
+                  }
+                  Tlc.update();
+                  delayMicroseconds(iUpdateTime);
+                  
+                  /////////////////
+                  Tlc.clear();
+                  Tlc.update();
+                  delayMicroseconds(iClearTime);
+                  digitalWrite(0, HIGH);
+                  digitalWrite(1, HIGH);
+                  digitalWrite(2, HIGH);
+                  digitalWrite(5, HIGH);
+                  digitalWrite(6, HIGH);
+                  digitalWrite(7, LOW);
+                  digitalWrite(8, HIGH);
+                  digitalWrite(12, HIGH);
+                  for(int iPrintDigits = 0; iPrintDigits < 8; iPrintDigits ++)
+                  {
+                    if(iDigitSegs[2][iPrintDigits]) Tlc.set(iPrintDigits, 4095);
+                  }
+                  Tlc.update();          
+                  delayMicroseconds(iUpdateTime);
+                  
+                  /////////////
+                  Tlc.clear();
+                  Tlc.update();
+                  delayMicroseconds(iClearTime);
+                  digitalWrite(0, HIGH);
+                  digitalWrite(1, HIGH);
+                  digitalWrite(2, HIGH);
+                  digitalWrite(5, HIGH);
+                  digitalWrite(6, HIGH);
+                  digitalWrite(7, HIGH);
+                  digitalWrite(8, LOW);
+                  digitalWrite(12, HIGH);
+                  for(int iPrintDigits = 0; iPrintDigits < 8; iPrintDigits ++)
+                  {
+                    if(iDigitSegs[1][iPrintDigits]) Tlc.set(iPrintDigits, 4095);
+                  }
+                  Tlc.update();
+                  delayMicroseconds(iUpdateTime);
+                  
+                  /////////////////
+                  Tlc.clear();
+                  Tlc.update();
+                  delayMicroseconds(iClearTime);
+                  digitalWrite(0, HIGH);
+                  digitalWrite(1, HIGH);
+                  digitalWrite(2, HIGH);
+                  digitalWrite(5, HIGH);
+                  digitalWrite(6, HIGH);
+                  digitalWrite(7, HIGH);
+                  digitalWrite(8, HIGH);
+                  digitalWrite(12, LOW);
+                  for(int iPrintDigits = 0; iPrintDigits < 8; iPrintDigits ++)
+                  {
+                    if(iDigitSegs[0][iPrintDigits]) Tlc.set(iPrintDigits, 4095);
+                  }
+                  Tlc.update();
+                  delayMicroseconds(iUpdateTime);
+                  }
+                } 
+              }
+            }
+          }
+        }
+      }
+    } 
+  }
+}
