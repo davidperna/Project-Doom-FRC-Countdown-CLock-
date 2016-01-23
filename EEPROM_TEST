@@ -1,0 +1,31 @@
+
+#include <EEPROM.h>
+
+#define LED_PIN 3
+
+int x = 0;
+
+void setup() {
+  
+  pinMode(LED_PIN, OUTPUT);
+  
+  //Serial.begin(115200);
+  
+  EEPROM.write(0,int(10));
+  //x = EEPROM.get(0);
+}
+
+void loop() {
+  
+  //Serial.println(x);
+  
+  while(x > 0) {
+    digitalWrite(LED_PIN, HIGH);
+    delay(500);
+    digitalWrite(LED_PIN,LOW);
+    delay(500);
+    x--;
+  }
+  
+  delay(10000);
+}
