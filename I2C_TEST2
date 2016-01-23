@@ -1,0 +1,31 @@
+#include <Wire.h>
+
+byte bcdToDec(byte val)
+{
+  return ( (val / 16 * 10) + (val % 16) );
+}
+
+void setup()
+{
+  Wire.begin();        // join i2c bus (address optional for master)
+  Serial.begin(57600);  // start serial for output
+}
+
+int second, minute, hour, day, week; 
+
+void loop()
+{
+  Wire.beginTransmission(0x68);   // Open I2C line in write mode
+  Wire.write((byte)0x00);                              // Set the register pointer to (0x00)
+  Wire.endTransmission();                       // End Write Transmission
+
+  Wire.requestFrom(0x68, 3);      // Open the I2C line in send mode
+
+  second = bcdToDec(Wire.read() & 0x7f);
+  minute = bcdToDec(Wire.read());
+  hour = bcdToDec(Wire.read() & 0x3f);
+  
+  Serial.print(second);  Serial.print(" seconds : ");
+  Serial.print(minute);  Serial.print(" minutes : ");
+  Serial.print(hour);  Serial.println(" hours");
+}
