@@ -1,0 +1,97 @@
+#include <Tlc5940.h>
+//#include <tlc_animations.h>
+//#include <tlc_config.h>
+//#include <tlc_fades.h>
+//#include <tlc_progmem_utils.h>
+//#include <tlc_servos.h>
+//#include <tlc_shifts.h>
+
+#include "Tlc5940.h"
+
+  boolean iNumberToSegments[10][8] = { {1,1,1,1,1,1,0,0},
+                                       {0,1,1,0,0,0,0,0},
+                                       {1,1,0,1,1,0,1,0}, 
+                                       {1,1,1,1,0,0,1,0}, 
+                                       {0,1,1,0,0,1,1,0}, 
+                                       {1,0,1,1,0,1,1,0}, 
+                                       {1,0,1,1,1,1,1,0}, 
+                                       {1,1,1,0,0,0,0,0},
+                                       {1,1,1,1,1,1,1,0}, 
+                                       {1,1,1,1,0,1,1,0}  };
+                                       
+  /*
+    0 = a
+    1 = b
+    2 = c
+    3 = d
+    4 = e
+    5 = f
+    6 = g
+    7 = dp
+  */
+  int iAnalogValue = 0;
+  int iFirstDigit = 0;
+  int iSecondDigit = 0;
+  int iThirdDigit = 0;
+  int iFourthDigit = 0;
+  boolean iFirstDigitSegs[] = {0,0,0,0,0,0,0,0};
+  boolean iSecondDigitSegs[] = {0,0,0,0,0,0,0,0};
+  boolean iThirdDigitSegs[] = {0,0,0,0,0,0,0,0};
+  boolean iFourthDigitSegs[] = {0,0,0,0,0,0,0,0};
+void setup()
+{
+  pinMode(2, OUTPUT);
+  Tlc.init(0); // initialise TLC5940 and set all channels off
+}
+
+void loop()
+{
+  iAnalogValue = analogRead(5);
+  if(iAnalogValue < 800) 
+  {
+    digitalWrite(2,HIGH);
+  }
+  else digitalWrite(2, LOW);
+  
+  iFirstDigit = iAnalogValue % 10;
+  iSecondDigit = ((iAnalogValue  - iFirstDigit) / 10) % 10; 
+  iThirdDigit = ((iAnalogValue - iFirstDigit - (iSecondDigit * 10)) / 100) % 10;
+  iFourthDigit = ((iAnalogValue - iFirstDigit - (iSecondDigit * 10) - (iThirdDigit * 100)) / 1000) % 10;
+  
+      ////////////////////////////
+      Tlc.clear();
+      Tlc.update();
+      delay(2000);
+      for(int iUpdateSegs = 0; iUpdateSegs < 8; iUpdateSegs ++)
+      {
+        iFourthDigitSegs[iUpdateSegs] = iNumberToSegments[iFourthDigit][iUpdateSegs];
+        iThirdDigitSegs[iUpdateSegs] = iNumberToSegments[iThirdDigit][iUpdateSegs];
+      }
+      
+      for(int iPrintDigits = 0; iPrintDigits < 8; iPrintDigits ++)
+      {
+        if(iFourthDigitSegs[iPrintDigits]) Tlc.set(0 + iPrintDigits, 2048);
+        if(iThirdDigitSegs[iPrintDigits]) Tlc.set(8 + iPrintDigits, 2048);
+      }
+      Tlc.update();
+      delay(1000); 
+      
+      /////////////////////////
+      Tlc.clear();
+      Tlc.update();
+      delay(1);
+      for(int iUpdateSegs = 0; iUpdateSegs < 8; iUpdateSegs ++)
+      {
+        iSecondDigitSegs[iUpdateSegs] = iNumberToSegments[iSecondDigit][iUpdateSegs];
+        iFirstDigitSegs[iUpdateSegs] = iNumberToSegments[iFirstDigit][iUpdateSegs];
+      }
+      
+      for(int iPrintDigits = 0; iPrintDigits < 8; iPrintDigits ++)
+      {
+        if(iSecondDigitSegs[iPrintDigits]) Tlc.set(0 + iPrintDigits, 2048);
+        if(iFirstDigitSegs[iPrintDigits]) Tlc.set(8 + iPrintDigits, 2048);
+      }
+      Tlc.update();
+      delay(1000); 
+      
+}
