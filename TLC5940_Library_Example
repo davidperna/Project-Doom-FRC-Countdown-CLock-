@@ -1,0 +1,33 @@
+#include "Tlc5940.h"
+void setup()
+{
+  Tlc.init(0); // initialise TLC5940 and set all channels off
+}
+
+void loop()
+{
+  for (int i = 0; i < 16; i++)
+  {
+    Tlc.set(i, 1023);
+  }
+  Tlc.update();
+  delay(1000);
+  for (int i = 0; i < 16; i++)
+  {
+    Tlc.set(i, 2046);
+  }
+  Tlc.update();
+  delay(1000);
+  for (int i = 0; i < 16; i++)
+  {
+    Tlc.set(i, 3069);
+  }
+  Tlc.update();
+  delay(1000);
+  for (int i = 0; i < 16; i++)
+  {
+    Tlc.set(i, 4095);
+  }
+  Tlc.update();
+  delay(1000);
+}
