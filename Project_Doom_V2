@@ -1,0 +1,245 @@
+// REBELS 4976 DOOMSDAY CLOCK
+// David Perna, Daniel Wolff, Ben Ecclestone, Reid Perna
+// 5/13/2015
+
+// DATASHEETS //
+// Shift Register: http://www.nxp.com/documents/data_sheet/74HC_HCT595.pdf
+// 7-Segment Display: http://pdf.datasheetcatalog.com/datasheet/vishay/83125.pdf
+// Real Time Clock: http://datasheets.maximintegrated.com/en/ds/DS1307.pdf
+
+// Include I2C Library
+#include <Wire.h>
+
+// DS_pin -> Serial Input to shift register through pin 2 on UNO.
+byte DS_pin = 2;
+// STCP_pin -> Storage Register clock input on shift register through pin 3 on UNO.
+byte STCP_pin = 3;
+// SHCP_pin -> Shift Register click input on shift register through pin 4 on UNO.
+byte SHCP_pin = 4;
+
+// Integer variables for the time.
+int seconds, minutes, hours, days, weeks;
+
+// Number of Segment Displays being used.
+byte numSegDisplays = 8;
+// Number of segments per display. (Including decimal point).
+byte numSegments = 8;
+// Bit registry for controlling the anodes on the 7-segment displays.
+boolean anodeData[8];
+// Bit registry for controlling the segments on a display.
+boolean segments[8];
+
+//Segment is on when bit is low.
+boolean bitOff = true;
+
+// Conversion from Binary Coded Decimal to Decimal
+byte bcdToDec(byte val)
+{
+  return ( (val / 16 * 10) + (val % 16) );
+}
+
+// Resets the segments to being all on.
+void resetSegments() {
+  for (int i = 0; i < numSegments; i++) {
+    segments[i] = !bitOff;
+  }
+}
+
+// Resets the anodes to being all on.
+void resetAnodes() {
+  for (int i = 0; i < numSegDisplays; i++) {
+    anodeData[i] = !bitOff;
+  }
+}
+
+// Writes the bit registry for both the anodes and segments to the shift registers.
+void writeToRegisters() {
+  // Lower the STCP to let the shift register know data is being sent.
+  digitalWrite(STCP_pin, LOW);
+
+  // For all of the segments...
+  for (int i = 0; i < numSegments; i++) {
+    // Lower the SCHP pin to let the shift register know a bit is being sent.
+    digitalWrite(SHCP_pin, LOW);
+    // Send the byte.
+    digitalWrite(DS_pin, segments[i]);
+    // Raise the SCHP pin to let the shift register know the bit has been sent.
+    digitalWrite(SHCP_pin, HIGH);
+  }
+
+  // For all of the anodes...
+  for (int i = 0; i < numSegDisplays; i++) {
+    // Lower the SCHP pin to let the shift register know a bit is being sent.
+    digitalWrite(SHCP_pin, LOW);
+    // Send the byte.
+    digitalWrite(DS_pin, anodeData[i]);
+    // Raise the SCHP pin to let the shift register know the bit has been sent.
+    digitalWrite(SHCP_pin, HIGH);
+  }
+
+  // Raise the SCHP pin to let the shift register know that all data has been sent, and can be sent to the segment displays.
+  digitalWrite(STCP_pin, HIGH);
+}
+
+// Takes a byte value (0-9) and matches it with its correct segments.
+void intToSeg(byte val) {
+  // Array value -> Segment :
+  // 7 -> a
+  // 6 -> b
+  // 5 -> c
+  // 4 -> d
+  // 3 -> e
+  // 2 -> f
+  // 1 -> g
+  // 0 -> .
+
+  // Turn the decimal point off.
+  segments[0] = bitOff;
+
+  switch (val) {
+    case 0:
+      segments[1] = bitOff;
+      break;
+    case 1:
+      segments[7] = bitOff;
+      segments[4] = bitOff;
+      segments[3] = bitOff;
+      segments[2] = bitOff;
+      segments[1] = bitOff;
+      break;
+    case 2:
+      segments[5] = bitOff;
+      segments[2] = bitOff;
+      break;
+    case 3:
+      segments[3] = bitOff;
+      segments[2] = bitOff;
+      break;
+    case 4:
+      segments[7] = bitOff;
+      segments[4] = bitOff;
+      segments[3] = bitOff;
+      break;
+    case 5:
+      segments[6] = bitOff;
+      segments[3] = bitOff;
+      break;
+    case 6:
+      segments[6] = bitOff;
+      break;
+    case 7:
+      segments[4] = bitOff;
+      segments[3] = bitOff;
+      segments[2] = bitOff;
+      segments[1] = bitOff;
+      break;
+    case 8:
+      break;
+    case 9:
+      segments[3] = bitOff;
+      break;
+
+  }
+}
+
+// Setup
+void setup() {
+  // Begin I2C
+  Wire.begin();
+  // Start Serial output. (56700 BAUD or higher works best).
+  Serial.begin(57600);
+
+  // Set the pin modes for the DS, STCP, and SHCP pins to OUTPUT.
+  pinMode(DS_pin, OUTPUT);
+  pinMode(STCP_pin, OUTPUT);
+  pinMode(SHCP_pin, OUTPUT);
+
+  // Open I2C line in write mode
+  Wire.beginTransmission(0x68);
+  // Set the register pointer to (0x00)
+  Wire.write((byte)0x00);
+  // Set the seconds to zero.
+  Wire.write(0);
+  // Set the minutes to zero.
+  Wire.write(0);
+  // Set the hours to zero.
+  Wire.write(0);
+  // Set the weekDay to Sunday.
+  Wire.write(1);
+  // Set the monthDay to one.
+  Wire.write(7);
+  // Set the month to July. (July and August both have 31 days, therefore calculating weeks between the two makes life easy.
+  Wire.write(1);
+  // Set the year to 2001. (No leap-year).
+  Wire.write(1);
+  // End Write Transmission
+  Wire.endTransmission();
+}
+
+// Loop
+void loop() {
+  // Open I2C line in write mode
+  Wire.beginTransmission(0x68);
+  // Set the register pointer to (0x00)
+  Wire.write((byte)0x00);
+  // End Write Transmission
+  Wire.endTransmission();
+
+  // Open the I2C line in send mode
+  Wire.requestFrom(0x68, 3);
+
+  // Read the seconds from the first byte. (Mask to 0x7f).
+  seconds = bcdToDec(Wire.read() & 0x7f);
+  // Read the minutes from the second byte.
+  minutes = bcdToDec(Wire.read());
+  // Read the hours from the third byte. (Mask to 0x3f).
+  hours = bcdToDec(Wire.read() & 0x3f);
+  // Loop through each display..
+
+  for (int i = 0; i < numSegDisplays; i++) {
+    // Reset the segments and the anodes.
+    resetSegments();
+    resetAnodes();
+    
+    // Set the corresponding anode to the display being displayed to off (This may be reversed).
+    anodeData[i] = bitOff; //////////////////////////////////////////////////// Will this work? May be reversed.
+
+    // Depending on what loop we are on, send the correct number to the intToSeg method.
+    switch (i) {
+      case 0:
+        intToSeg((59-seconds) % 10);
+        break;
+      case 1:
+        intToSeg(((59-seconds) - ((59-seconds) % 10))/10);
+        break;
+      case 2:
+        intToSeg((59-minutes) % 10);
+        break;
+      case 3:
+        intToSeg(((59-minutes) - ((59-minutes) % 10))/10);
+        break;
+      case 4:
+        intToSeg((23-hours) % 10);
+        break;
+      case 5:
+        intToSeg(((23-hours) - ((23-hours) % 10))/10);
+        break;
+      case 6:
+        intToSeg((6-days) % 7); /////////////////////////////////////////////////////// Figure out how to get the days right.
+        break;
+      case 7:
+        intToSeg(5-weeks); /////////////////////////////////////////////////////// Figure out how to get the weeks right.
+        break;
+    }
+
+    // Write to the shift registers to update the display.
+    writeToRegisters();
+
+
+
+  }
+
+  // Mess around with the delay to try and save as many cycles as possible.
+  //delay(10);
+
+}
