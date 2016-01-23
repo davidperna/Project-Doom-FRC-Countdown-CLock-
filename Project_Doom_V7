@@ -1,0 +1,215 @@
+// REBELS 4976 DOOMSDAY CLOCK V7
+// David Perna, Daniel Wolff, Ben Ecclestone, Reid Perna
+// 5/13/2015
+
+// DATASHEETS //
+// 7-Segment Display: http://pdf.datasheetcatalog.com/datasheet/vishay/83125.pdf
+// Real Time Clock: http://datasheets.maximintegrated.com/en/ds/DS1307.pdf
+// Shift Register: http://www.ti.com/lit/ds/symlink/tlc5940.pdf
+
+// Include I2C Library
+#include <Wire.h>
+// Include TLC Library
+#include <Tlc5940.h>
+
+// Integer variables for the time.
+int seconds, minutes, hours, days, weeks, date, months;
+int numSegments = 8, numDisplays = 8;
+
+boolean anode1 = false;
+boolean anode2 = false;
+boolean anode3 = false;
+boolean anode4 = false;
+
+boolean numberSegments[10][8] = {  
+  {
+    1,1,1,1,1,1,0,0            }
+  ,
+  {
+    0,1,1,0,0,0,0,0            }
+  ,
+  {
+    1,1,0,1,1,0,1,0            }
+  ,
+  {
+    1,1,1,1,0,0,1,0            }
+  ,
+  {
+    0,1,1,0,0,1,1,0            }
+  ,
+  {
+    1,0,1,1,0,1,1,0            }
+  ,
+  {
+    1,0,1,1,1,1,1,0            }
+  ,
+  {
+    1,1,1,0,0,0,0,0            }
+  ,
+  {
+    1,1,1,1,1,1,1,0            }
+  ,
+  {
+    1,1,1,1,0,1,1,0            }  
+};
+
+// Conversion from Binary Coded Decimal to Decimal
+byte bcdToDec(byte val)
+{
+  return ( (val / 16 * 10) + (val % 16) );
+}
+
+void resetAnodes() {
+  anode1 = false;
+  anode2 = false;
+  anode3 = false;
+  anode4 = false;
+
+  PORTD |= 1<<5;
+  PORTD |= 1<<6;
+  PORTD |= 1<<7; 
+  PORTB |= 1<<0;
+}
+
+// Setup
+void setup()
+{
+  // Begin I2C
+  Wire.begin();
+  // Init TLC
+  Tlc.init(0);
+
+  // Start Serial output. (56700 BAUD or higher works best).
+  Serial.begin(57600);
+
+  pinMode(5,OUTPUT);
+  pinMode(6,OUTPUT);
+  pinMode(7,OUTPUT);
+  pinMode(8,OUTPUT);
+
+  // Open I2C line in write mode
+  Wire.beginTransmission(0x68);
+  // Set the register pointer to (0x00)
+  Wire.write((byte)0x00);
+  // Set the seconds to zero.
+  Wire.write(0);
+  // Set the minutes to zero.
+  Wire.write(0);
+  // Set the hours to zero.
+  Wire.write(0);
+  // Set the weekDay to Sunday.
+  Wire.write(1);
+  // Set the monthsDay to one.
+  Wire.write(1);
+  // Set the months to July. (July and August both have 31 days, therefore calculating weeks between the two makes life easy.
+  Wire.write(7);
+  // Set the year to 2001. (No leap-year).
+  Wire.write(1);
+  // End Write Transmission
+  Wire.endTransmission();
+
+}
+
+void loop()
+{
+  // Open I2C line in write mode
+  Wire.beginTransmission(0x68);
+  // Set the register pointer to (0x00)
+  Wire.write((byte)0x00);
+  // End Write Transmission
+  Wire.endTransmission();
+
+  // Open the I2C line in send mode
+  Wire.requestFrom(0x68, 6);
+
+  // Read the seconds from the first byte. (Mask to 0x7f).
+  seconds = bcdToDec(Wire.read() & 0x7f);
+  // Read the minutes from the second byte.
+  minutes = bcdToDec(Wire.read());
+  // Read the hours from the third byte. (Mask to 0x3f).
+  hours = bcdToDec(Wire.read() & 0x3f);
+  // Read the days from the fourth byte. 
+  days = bcdToDec(Wire.read());
+  // Read the date from the fifth byte.
+  date = bcdToDec(Wire.read());
+  // Read the months from the sixth byte.
+  months = bcdToDec(Wire.read());
+
+  weeks = floor((31*(months-7) + date)/7);
+
+  // Loop through each display..
+  for (int i = 0; i < numDisplays; i+=2) {
+    resetAnodes();
+    Tlc.clear();
+
+    /*
+    // TEMP  
+     digitalWrite(anode3,HIGH);
+     setNumber(1,i);
+     setNumber(2,i+1);
+     delay(1000);
+     // TEMP
+     */
+
+    for (int k = 0; k < 2; k++) {
+
+      // Depending on what loop we are on, send the correct number to the setNumber method.
+      switch (i+k) {
+      case 1:
+        anode1 = true;
+        setNumber((59-seconds) % 10,i+k);
+        break;
+      case 0:
+        setNumber(((59-seconds) - ((59-seconds) % 10))/10,i+k);
+        break;
+      case 3:
+        anode2 = true;
+        setNumber((59-minutes) % 10,i+k);
+        break;
+      case 2:
+        setNumber(((59-minutes) - ((59-minutes) % 10))/10,i+k);
+        break;
+      case 5:
+        anode3 = true;
+        setNumber((23-hours) % 10,i+k);
+        break;
+      case 4:
+        setNumber(((23-hours) - ((23-hours) % 10))/10,i+k);
+        break;
+      case 7:
+        anode4 = true;
+        setNumber((7-days) % 7,i+k); /////////////////////////////////////////////////////// Figure out how to get the days right.
+        break;
+      case 6:
+        setNumber(5-weeks,i+k); /////////////////////////////////////////////////////// Figure out how to get the weeks right.
+        break;
+      }
+    }
+    Tlc.update();
+
+    delay(2);
+
+    if (anode1)
+      PORTD &= 0<<5;
+    else if (anode2)
+      PORTD &= 0<<6; 
+    else if (anode3)
+      PORTD &= 0<<7;
+    else if (anode4) 
+      PORTB &= 0<<0;
+
+    delay(2);
+
+  }
+}
+
+// Takes the number and what display it is on and sends it to the TLC.
+void setNumber(byte _num, byte _display ) {
+  // For each segment of a single display..
+  for (int i = 0; i < numSegments; i++) {
+    // Take the remainder 2 of the current display, multiply it by 8 and add the current segment to send
+    //   the correct segment data to the TLC.
+    // Set the brightness to the data in numberSegments multiplied by 2048 (maximum brightness).
+    Tlc.set((_display%2)*8 + i, numberSegments[_num][i]*1024);
+  }
+}
